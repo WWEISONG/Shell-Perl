@@ -1,0 +1,14 @@
+#!/bin/dash
+
+# This script will provide 'shrug-log' command which will output the
+# commit log information with the reverse order 
+
+# -- Wei Song, z5198433
+
+log_file=".shrug/log.txt"
+
+log() {
+    cat $log_file | sort -nr
+}
+
+log

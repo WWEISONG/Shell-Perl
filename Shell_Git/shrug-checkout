@@ -1,0 +1,52 @@
+#!/bin/dash
+
+
+branch_dir=".shrug/branch"
+ancestor=".shrug/ancestor"
+
+checkout() {
+	if ! [ $# = 1 ]
+	then
+		echo "usage: $0 <branch>"
+		exit 0
+	fi
+
+	current=`cat ".shrug/current.txt" | sed "s/ *$//"`
+	if [ $current = $1 ]
+	then
+		echo "Already on '$1'"
+		exit 0
+	fi
+
+	if ! [ -e "$branch_dir/$1" ]
+	then
+		echo "$0: error: unknown branch '$1'"
+		exit 0 
+	fi
+
+	echo "$1" > ".shrug/current.txt"
+
+	for file in $(ls "$branch_dir/$1")
+	do
+		cp -f "$branch_dir/$1/$file" "$file"
+	done
+
+	for file in $(ls)
+	do
+		if ! ([ $file = "shrug-add" ] || [ $file = "shrug-commit" ] \
+			|| [ $file = "shrug-init" ] || [ $file = "shrug-rm" ] \
+			|| [ $file = "shrug-status" ] || [ $file = "shrug-log" ] \
+			|| [ $file = "shrug-show" ] || [ $file = ".shrug" ] \
+			|| [ $file = "shrug-branch" ] || [ $file = "shrug-checkout" ] \
+			|| [ $file = "shrug-merge" ])
+		then
+			if ! [ -e "$branch_dir/$file"]
+			then
+				rm -f $file
+			fi
+		fi
+	done
+	echo "Switched to branch '$1'"
+}
+
+checkout $@

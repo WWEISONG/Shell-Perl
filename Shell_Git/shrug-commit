@@ -1,0 +1,130 @@
+#!/bin/dash
+
+# This script provide shrug-commit command which saves a copy of
+# all files in the index to repository.
+
+# -- Wei Song, z5198433
+
+repo_name=".shrug"
+index_dir=".shrug/index"
+commit_dir=".shrug/commit"
+log=".shrug/log.txt"
+branch_dir=".shrug/branch"
+ancestor=".shrug/ancestor"
+
+latest_commit_version() {
+	version=0
+	for dir in $(ls $commit_dir)
+	do
+		cur_version=`echo "$dir" | cut -d'_' -f2 | sed "s/^ *//" | sed "s/ *$//"`
+		if [ $cur_version -gt $version ]
+		then
+			version=$cur_version
+		fi
+	done
+	echo $version
+}
+
+file_diff() {
+	if [ -e $1 ]
+	then
+		if ! [ -e $2 ]
+		then
+			echo 1
+		else
+			diff $1 $2 >/dev/null 2>&1
+			echo $? 
+		fi 
+	fi
+}
+
+commit() {
+	if ! test -e "$repo_name"
+	then
+		echo "$0: error: no $repo_name directory containing shrug repository exists"
+		exit 1
+	fi
+
+	if ! test -e "$index_dir"
+	then
+		echo "$0: error: maybe you wanted to say 'shrug-add .'?"
+		exit 1
+	fi
+
+	if ! [ "$#" -ge 2 ] || ! ([ $1 = "-m" ] || [ $1 = "-a" ])
+	then
+		echo "usage: $0 [-a] -m commit-message"
+		exit 1
+	fi 
+
+	if [ $1 = "-a" ]
+	then 
+		for file in $(ls $index_dir)
+		do
+			if [ -e $file ]
+			then
+				cp -f "$file" "$index_dir/$file" >/dev/null 2>&1
+			fi
+		done
+	fi
+
+	if ! [ -e "$commit_dir/commit_0" ]
+	then 
+		latest_version=0
+		highest_version=-1
+	else 
+		highest_version=$(latest_commit_version)
+		latest_version=$(( $highest_version + 1 ))
+	fi 
+
+	mkdir "$commit_dir/commit_$latest_version"
+	commit_happen=0
+	
+	for file in $(ls $index_dir)
+	do
+		cp -f "$index_dir/$file" "$commit_dir/commit_$latest_version/$file" >/dev/null 2>&1
+		if [ $highest_version -eq -1 ]
+		then
+			commit_happen=1
+		else
+			result=$(file_diff "$index_dir/$file" "$commit_dir/commit_$highest_version/$file")
+			if [ $result -eq 1 ]
+			then
+				commit_happen=1
+			fi
+		fi
+	done
+
+	if ! [ $highest_version -eq -1 ]
+	then
+		for file in $(ls "$commit_dir/commit_$highest_version")
+		do
+			if ! [ -e "$index_dir/$file" ]
+			then
+				rm -f "$commit_dir/commit_$highest_version/$file"
+				commit_happen=1
+			fi
+		done
+	fi
+
+	if [ $commit_happen -eq 0 ]
+	then
+		echo "nothing to commit"
+		rm -rf $commit_dir/commit_$latest_version
+		exit 0
+	else
+		echo "$@" | sed "s/^-m/$latest_version/" >>"$log"
+		echo "Committed as commit $latest_version"
+
+		current_branch=`cat ".shrug/current.txt" | sed "s/ *$//"`
+		if [ $current_branch = "---ancestor---" ]
+		then
+			cp -rf "./$commit_dir/commit_$latest_version/." "./$ancestor/"
+		else
+			cp -rf "./$commit_dir/commit_$latest_version/." "./$branch_dir/$current_branch/"
+		fi
+		exit 0
+	fi
+} 
+
+commit $@

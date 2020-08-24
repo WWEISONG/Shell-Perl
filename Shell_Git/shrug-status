@@ -1,0 +1,104 @@
+#!/bin/dash
+
+index_dir=".shrug/index"
+commit_dir=".shrug/commit"
+latest_commit_version() {
+	version=0
+	for dir in $(ls $commit_dir)
+	do
+		cur_version=`echo "$dir" | cut -d'_' -f2 | sed "s/^ *//" | sed "s/ *$//"`
+		if [ $cur_version -gt $version ]
+		then
+			version=$cur_version
+		fi
+	done
+	echo $version
+}
+
+file_diff() {
+	if [ -e $1 ]
+	then
+		if ! [ -e $2 ]
+		then
+			echo 1
+		else
+			diff $1 $2 >/dev/null 2>&1
+			echo $? 
+		fi 
+	fi
+}
+
+status() {
+	mkdir .temp
+	latest_commit=$(latest_commit_version)
+	for file in $(ls)
+	do
+		touch .temp/$file
+	done
+
+	for file in $(ls $index_dir)
+	do
+		touch .temp/$file
+	done
+
+	if [ -e "$commit_dir/commit_$latest_commit" ]
+	then
+		for file in $(ls $commit_dir/commit_$latest_commit)
+		do
+			touch .temp/$file
+		done
+	fi
+
+	for file in $(ls .temp)
+	do
+		if ! ([ $file = "shrug-add" ] || [ $file = "shrug-commit" ] \
+			|| [ $file = "shrug-init" ] || [ $file = "shrug-rm" ] \
+			|| [ $file = "shrug-status" ] || [ $file = "shrug-log" ] \
+			|| [ $file = "shrug-show" ] || [ $file = ".shrug" ] \
+			|| [ $file = "shrug-branch" ] || [ $file = "shrug-checkout" ] \
+			|| [ $file = "shrug-merge" ])
+		then
+			if [ -e $file ] && [ -e $index_dir/$file ] && [ -e "$commit_dir/commit_$latest_commit/$file" ]
+			then
+				result=$(file_diff $file "$index_dir/$file")
+				if [ $result = 1 ]
+				then
+					result=$(file_diff "$index_dir/$file" "$commit_dir/commit_$latest_commit/$file")
+					if [ $result = 1 ]
+					then
+						echo "$file - file changed, different changes staged for commit"
+					else 
+						echo "$file - file changed, changes not staged for commit"
+					fi
+				else
+					result=$(file_diff "$index_dir/$file" "$commit_dir/commit_$latest_commit/$file")
+					if [ $result = 1 ]
+					then
+						echo "$file - file changed, changes staged for commit"
+					else 
+						echo "$file - same as repo"
+					fi
+				fi
+			elif ! [ -e $file ] && ! [ -e $index_dir/$file ] && [ -e "$commit_dir/commit_$latest_commit/$file" ]
+			then 
+				echo "$file - deleted"
+			elif ! [ -e $file ] && [ -e $index_dir/$file ] && [ -e "$commit_dir/commit_$latest_commit/$file" ]
+			then
+				echo "$file - file deleted"
+			elif [ -e $file ] && [ -e $index_dir/$file ] && ! [ -e "$commit_dir/commit_$latest_commit/$file" ]
+			then
+				result=$(file_diff $file "$index_dir/$file")
+				if [ $result = 0 ]
+				then
+					echo "$file - added to index"
+				fi
+			elif [ -e $file ] && ! [ -e $index_dir/$file ] && ! [ -e "$commit_dir/commit_$latest_commit/$file" ] 
+			then
+				echo "$file - untracked"
+			fi
+		fi 
+	done
+	rm -rf .temp
+}
+
+status

@@ -1,0 +1,48 @@
+#!/bin/dash
+
+index_dir=".shrug/index"
+commit_dir=".shrug/commit"
+
+show() {
+    if ! [ $# -eq 1 ]
+    then
+        echo "usage: $0 [commit]:filename"
+        exit 0
+    fi
+
+    commit=`echo "$1" | cut -d':' -f1`
+    filename=`echo "$1" | cut -d':' -f2`
+
+    if [ ! $filename ]
+    then
+        echo "usage: $0 [commit]:filename"
+        exit 0
+    fi
+
+    if [ ! $commit ]
+    then
+        if ! [ -e $index_dir/$filename ]
+        then
+            echo "$0: error: '$filename' not found in index"
+            exit 1
+        else 
+            cat  $index_dir/$filename
+        fi
+    else 
+        if ! [ -e "$commit_dir/commit_$commit" ]
+        then
+            echo "$0: error: unknown commit '$commit'"
+            exit 1
+        fi
+
+        if ! [ -e "$commit_dir/commit_$commit/$filename" ]
+        then
+            echo "$0: error: '$filename' not found in commit $commit"
+            exit 1
+        else 
+            cat "$commit_dir/commit_$commit/$filename"
+        fi 
+    fi
+}
+
+show $@

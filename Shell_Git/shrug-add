@@ -1,0 +1,73 @@
+#!/bin/dash
+
+# This script will provide a Git like comment 'shrug-add' which will
+# add one or more files to the .shrug sub-directory 'index'. Only the
+# Ordinary files can be added as well as the filenames should only
+# contain [a-zA-Z0-9] with '.','_','-' characters.
+
+# -- Wei Song, z5198433
+
+add() {
+	repo_name=".shrug"
+	index_dir=".shrug/index"
+	# step-1: 
+	# check the .shrug repository exist or not
+	if ! test -e "$repo_name"
+	then
+		echo "$0: error: no $repo_name directory containing shrug repository exists"
+		exit 1
+	fi
+
+	if ! test -e "$index_dir"
+	then
+		mkdir "$index_dir"
+	fi
+
+	# step-2:
+	# check the file exist or not either in current dictionary or in 'index'
+	for file in $@
+	do 
+		if ! [ -e "$file" ] && ! [ -e $index_dir/"$file" ] 
+		then
+			echo "$0: error: can not open '$file'"
+			exit 1
+		fi 
+	done
+
+	# step-3:
+	# check the filename, which should contain alphanumeric and '.'. '_', '-'
+	for filename in $@
+	do 
+		if ! ( echo "$filename" | egrep "^[a-zA-Z0-9\.\-\_]" ) >/dev/null
+		then
+			echo "$0: error: invalid filename '$filename'"
+			exit 1
+		fi
+	done
+
+	# step -4:
+	# update files, check two versions are different or not and upate
+	for file in $@
+	do 
+		if [ -e "$file" ]
+		then
+			if ! [ -e "$index_dir/$file" ]
+			then
+				cp -f "$file" "$index_dir/$file" >/dev/null 2>&1
+			else 
+				diff "$file" "$index_dir/$file" >/dev/null
+				if [ $? = 1 ] 
+				then
+					cp -f "$file" "$index_dir/$file" >/dev/null 2>&1
+				fi 
+			fi
+		else
+			if [ -e "$index_dir/$file" ]
+			then 
+				rm -f "$index_dir/$file"
+			fi
+		fi
+	done
+}
+
+add $@

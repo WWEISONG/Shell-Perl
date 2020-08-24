@@ -1,0 +1,76 @@
+#!/bin/dash
+
+
+branch_dir=".shrug/branch"
+ancestor=".shrug/ancestor"
+
+shrug_branch() {
+	if [ $# -gt 2 ]
+	then
+		echo "usage: $0 [-d] [branch-name]"
+		exit 1
+	fi
+
+	if [ $# -eq 0 ]
+	then
+		for branch in $(ls $branch_dir)
+		do
+			echo "$branch"
+		done
+		exit 0
+	fi
+
+	if [ $# -eq 1 ]
+	then
+		if [ $1 = "-d" ]
+		then
+			echo "usage: $0 [-d] [branch-name]"
+			exit 1
+		fi
+
+		for branch in $(ls $branch_dir)
+		do
+			if [ $branch = "$1" ]
+			then
+				echo "$0: error: branch '$1' already exists"
+				exit 1
+			fi
+		done
+
+		mkdir "$branch_dir/$1"
+		for file in $(ls $ancestor)
+		do
+			cp -f "$ancestor/$file" "$branch_dir/$1/$file"
+		done
+		exit 0
+	fi
+
+	if [ $# -eq 2 ]
+	then
+		if [ $1 = "-d" ] && [ $2 ]
+		then
+			if ! [ -e "$branch_dir/$2" ]
+			then
+				echo "$0: error: branch '$2' does not exist"
+				exit 1
+			else
+				if [ $2 = "master" ]
+				then
+					echo "$0: error: can not delete branch 'master'"
+					exit 1
+				else
+					current_branch=`cat ".shrug/current.txt" | sed "s/ *$//"`
+					if ! [ $current_branch = $2 ]
+					then
+						rm -rf $branch_dir/$2
+						echo "Deleted branch '$2'"
+					else 
+						echo "$0: error: Cannot checkout branch '$2' checkout at .shrug"
+					fi 
+				fi
+			fi
+		fi
+	fi
+}
+
+shrug_branch $@

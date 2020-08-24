@@ -1,0 +1,30 @@
+#!/bin/dash
+
+# This dash shell script weill provide the 'shrug-init' command which
+# will create an empty Shrug repository.It will produce an error message
+# if this directory already exists.
+
+# -- Wei Song, z5198433
+
+init() {
+	repo_name=".shrug"
+	commit_dir="commit"
+	if test -e "$repo_name"
+	then
+		echo "$0: error: $repo_name already exists"
+		exit 1
+	else 
+		mkdir "$repo_name"
+		mkdir "$repo_name/$commit_dir/"
+		mkdir "$repo_name/branch"
+		mkdir "$repo_name/index"
+		mkdir "$repo_name/branch/master"
+		mkdir "$repo_name/ancestor"
+		touch "$repo_name/log.txt"
+		touch "$repo_name/current.txt"
+		echo "---ancestor---" > "$repo_name/current.txt"
+		echo "Initialized empty shrug repository in $repo_name"
+	fi
+}
+
+init 

@@ -1,0 +1,45 @@
+#!/bin/dash
+
+branch_dir=".shrug/branch"
+commit_dir=".shrug/commit"
+
+merge() {
+    if [ $# -eq 0 ] || [ $# -eq 2 ]
+    then
+        echo "usage: $0 <branch-name|commit> -m message"
+        exit 0
+    fi
+
+    if [ $# -eq 1 ]
+    then
+        echo "$0: error: empty commit message"
+        exit 0
+    fi
+
+    if ! [ $2 = "-m" ]
+    then
+        echo "usage: $0 <branch-name|commit> -m message"
+        exit 0
+    fi
+
+    if [ $1 = "commit" ]
+    then
+        echo "need to complete commit"
+    else
+        if ! [ -e $branch_dir/$1 ]
+        then
+            echo "$0: error: unknown branch '$1'"
+            exit 1
+        fi
+
+        current_branch=`cat ".shrug/current.txt" | sed "s/ *$//"`
+        if [ $current_branch = "$1" ]
+        then
+            echo "Already up to date"
+            exit 0
+        fi
+        
+    fi
+}
+
+merge $@

@@ -1,0 +1,133 @@
+#!/bin/dash
+
+index_dir=".shrug/index"
+commit_dir=".shrug/commit"
+
+latest_commit_version() {
+	version=0
+	for dir in $(ls $commit_dir)
+	do
+		cur_version=`echo "$dir" | cut -d'_' -f2 | sed "s/^ *//" | sed "s/ *$//"`
+		if [ $cur_version -gt $version ]
+		then
+			version=$cur_version
+		fi
+	done
+	echo $version
+}
+
+file_diff() {
+	if [ -e $1 ]
+	then
+		if ! [ -e $2 ]
+		then
+			echo 1
+		else
+			diff $1 $2 >/dev/null 2>&1
+			echo $? 
+		fi 
+	fi
+}
+
+check_repo() {
+	if ! [ -e $index_dir/$1 ]
+	then
+		echo "$0: error: '$1' is not in the shrug repository"
+	fi
+}
+
+check_staged_index() {
+	if [ -e $index_dir/$1 ]
+	then 
+		result=$(file_diff "$1" "$index_dir/$1")
+		if [ $result = 0 ]
+		then
+			latest_commit=$(latest_commit_version)
+			result=$(file_diff "$index_dir/$1" "$commit_dir/commit_$latest_commit/$1")
+			if [ $result = 1 ]
+			then
+				echo "$0: error: '$1' has changes staged into the index"
+			else
+				rm "$1"
+				rm "$index_dir/$1"
+			fi
+		fi
+	fi
+}
+
+check_current_file() {
+	if [ -e $index_dir/$1 ]
+	then
+		result=$(file_diff "$1" "$index_dir/$1")
+		if [ $result = 1 ]
+		then
+			latest_commit=$(latest_commit_version)
+			result=$(file_diff "$1" "$commit_dir/commit_$latest_commit/$1")
+			if [ $result = 1 ]
+			then
+				result=$(file_diff "$index_dir/$1" "$commit_dir/commit_$latest_commit/$1")
+				if [ $result = 0 ]
+				then
+					echo "$0: error: '$1' in repository is different to working file"
+				else 
+					echo "$0: error: '$1' in index is different to both working file and repository"
+				fi
+			fi
+		fi
+	fi
+}
+
+remove() {
+	if [ $# -eq 0 ]
+	then
+		echo "usage:$0 [--force] [--cached] <filenames>"
+	fi
+
+	force=`echo "$@" | egrep -o '\-\-force'`
+	cached=`echo "$@" | egrep -o '\-\-cached'`
+	
+	if [ $cached ]
+	then
+		for file in $filenames
+		do
+			if ! [ -e $index_dir/$1 ]
+			then
+				echo "$0: error: '$1' is not in the shrug repository"
+			else
+				rm $index_dir/$file
+			fi
+		done
+		exit 0
+	fi
+
+	if [ $force ] && [ ! $cached ]
+	then
+		filenames=`echo "$@" | sed "s/$force //"`
+		for file in $filenames
+		do
+			if ! [ -e $index_dir/$1 ]
+			then
+				echo "$0: error: '$1' is not in the shrug repository"
+			else
+				rm $file $index_dir/$file
+			fi
+		done
+		exit 0
+	fi
+
+	if [ ! $force ] && [ ! $cached ]
+	then
+		for file in $@
+		do
+			if [ -e $file ]
+			then 
+				check_repo $file
+				check_staged_index $file
+				check_current_file $file
+			fi
+		done
+		exit 0
+	fi
+}
+
+remove $@
